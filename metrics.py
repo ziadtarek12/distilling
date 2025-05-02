@@ -14,104 +14,73 @@
 
 
 import numpy as np
+from evaluate import load
 
-
+# Helper function to compute text accuracy
 def compute_text_acc(preds, labels):
-    return np.mean(np.array(preds) == np.array(labels))
+    correct = sum(1 for pred, label in zip(preds, labels) if pred.strip() == label.strip())
+    return correct / len(preds)
 
-
+# Helper function to evaluate equations and compute accuracy
 def compute_equation_acc(preds, labels):
-    preds = [eval_equation(pred) for pred in preds]
-    labels = [eval_equation(label) for label in labels]
-
-    return np.mean(np.array(preds) == np.array(labels))
-
-
-def eval_equation(equation):
-    try:
-        answer = eval(equation)
-    except:
-        answer = np.nan
-
-    return answer
-
+    correct = 0
+    total = len(preds)
+    for pred, label in zip(preds, labels):
+        try:
+            # Attempt to evaluate both prediction and label as Python expressions
+            pred_val = eval(pred.strip())
+            label_val = eval(label.strip())
+            # Check for numerical equivalence (allowing for floating point inaccuracies)
+            if isinstance(pred_val, (int, float)) and isinstance(label_val, (int, float)):
+                if abs(pred_val - label_val) < 1e-6:
+                    correct += 1
+            # Check for string equivalence if not numerical
+            elif str(pred_val) == str(label_val):
+                 correct += 1
+        except Exception:
+            # If evaluation fails or types mismatch, compare as strings
+            if pred.strip() == label.strip():
+                correct += 1
+    return correct / total
 
 def compute_metrics_text(tokenizer):
     def compute_metrics(eval_pred):
-        predictions, labels = eval_pred
-        predictions = np.where(predictions != -100, predictions, tokenizer.pad_token_id)
-        decoded_preds = tokenizer.batch_decode(predictions[0], skip_special_tokens=True)
+        predictions, labels = eval_pred # predictions shape (batch_size, seq_len), labels shape (batch_size, seq_len)
 
-        labels = np.where(labels[0] != -100, labels[0], tokenizer.pad_token_id)
-        decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
-
-        acc = np.mean(np.array(decoded_preds) == np.array(decoded_labels))
-
-        return {'accuracy': acc}
-
-    return compute_metrics
-
-
-def compute_metrics_text_aux(tokenizer):
-    def compute_metrics(eval_pred):
-        predictions, labels = eval_pred
-        predictions = np.where(predictions != -100, predictions, tokenizer.pad_token_id)
+        # Replace -100 (ignore index) with pad_token_id
+        # Ensure predictions are integers
+        predictions = np.where(predictions != -100, predictions, tokenizer.pad_token_id).astype(np.int32)
+        # Decode the whole batch
         decoded_preds = tokenizer.batch_decode(predictions, skip_special_tokens=True)
 
-        labels = np.where(labels != -100, labels, tokenizer.pad_token_id)
+        # Replace -100 in labels as well
+        # Ensure labels are integers
+        labels = np.where(labels != -100, labels, tokenizer.pad_token_id).astype(np.int32)
+        # Decode the whole batch of labels
         decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
 
-        acc = np.mean(np.array(decoded_preds) == np.array(decoded_labels))
+        # Compute accuracy comparing the decoded strings using the helper function
+        acc = compute_text_acc(decoded_preds, decoded_labels)
 
         return {'accuracy': acc}
 
     return compute_metrics
-
-
 
 def compute_metrics_equation(tokenizer):
     def compute_metrics(eval_pred):
         predictions, labels = eval_pred
-        predictions = np.where(predictions != -100, predictions, tokenizer.pad_token_id)
-        decoded_preds = tokenizer.batch_decode(predictions[0], skip_special_tokens=True)
 
-        labels = np.where(labels[0] != -100, labels[0], tokenizer.pad_token_id)
-        decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
+        # Replace -100 and ensure integer type for predictions
+        predictions = np.where(predictions != -100, predictions, tokenizer.pad_token_id).astype(np.int32)
+        decoded_preds = tokenizer.batch_decode(predictions, skip_special_tokens=True) # Decode batch
 
-        preds = list()
-        for pred in decoded_preds:    
-            preds.append(eval_equation(pred))
+        # Replace -100 and ensure integer type for labels
+        labels = np.where(labels != -100, labels, tokenizer.pad_token_id).astype(np.int32)
+        decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True) # Decode batch
 
-        labels = list()
-        for label in decoded_labels:    
-            labels.append(eval_equation(label))
-
-        acc = np.mean(np.array(preds) == np.array(labels))
+        # Evaluate equations and compute accuracy using the helper function
+        acc = compute_equation_acc(decoded_preds, decoded_labels)
 
         return {'accuracy': acc}
-    
-    return compute_metrics
 
-
-def compute_metrics_equation_aux(tokenizer):
-    def compute_metrics(eval_pred):
-        predictions, labels = eval_pred
-        predictions = np.where(predictions != -100, predictions, tokenizer.pad_token_id)
-        decoded_preds = tokenizer.batch_decode(predictions, skip_special_tokens=True)
-
-        labels = np.where(labels != -100, labels, tokenizer.pad_token_id)
-        decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
-
-        preds = list()
-        for pred in decoded_preds:    
-            preds.append(eval_equation(pred))
-
-        labels = list()
-        for label in decoded_labels:    
-            labels.append(eval_equation(label))
-
-        acc = np.mean(np.array(preds) == np.array(labels))
-
-        return {'accuracy': acc}
-    
     return compute_metrics
