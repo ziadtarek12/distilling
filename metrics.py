@@ -18,13 +18,23 @@ from evaluate import load
 
 # Helper function to compute text accuracy
 def compute_text_acc(preds, labels):
+    # Ensure inputs are lists of strings
+    preds = [str(p) for p in preds]
+    labels = [str(l) for l in labels]
     correct = sum(1 for pred, label in zip(preds, labels) if pred.strip() == label.strip())
+    if not preds: # Avoid division by zero
+        return 0.0
     return correct / len(preds)
 
 # Helper function to evaluate equations and compute accuracy
 def compute_equation_acc(preds, labels):
     correct = 0
+    # Ensure inputs are lists of strings
+    preds = [str(p) for p in preds]
+    labels = [str(l) for l in labels]
     total = len(preds)
+    if total == 0: # Avoid division by zero
+        return 0.0
     for pred, label in zip(preds, labels):
         try:
             # Attempt to evaluate both prediction and label as Python expressions
@@ -46,16 +56,30 @@ def compute_equation_acc(preds, labels):
 def compute_metrics_text(tokenizer):
     def compute_metrics(eval_pred):
         predictions, labels = eval_pred # predictions shape (batch_size, seq_len), labels shape (batch_size, seq_len)
+        vocab_size = tokenizer.vocab_size
+        pad_token_id = tokenizer.pad_token_id
 
-        # Replace -100 (ignore index) with pad_token_id
-        # Ensure predictions are integers
-        predictions = np.where(predictions != -100, predictions, tokenizer.pad_token_id).astype(np.int32)
+        # --- Predictions Preprocessing ---
+        # Replace -100 (ignore index)
+        predictions = np.where(predictions == -100, pad_token_id, predictions)
+        # Check for NaN/Inf and replace with pad_token_id
+        if np.isnan(predictions).any() or np.isinf(predictions).any():
+            print("Warning: NaN or Inf detected in predictions. Replacing with pad_token_id.")
+            predictions = np.nan_to_num(predictions, nan=pad_token_id, posinf=pad_token_id, neginf=pad_token_id)
+        # Clip predictions to valid token ID range
+        predictions = np.clip(predictions, 0, vocab_size - 1).astype(np.int32)
         # Decode the whole batch
         decoded_preds = tokenizer.batch_decode(predictions, skip_special_tokens=True)
 
+        # --- Labels Preprocessing ---
         # Replace -100 in labels as well
-        # Ensure labels are integers
-        labels = np.where(labels != -100, labels, tokenizer.pad_token_id).astype(np.int32)
+        labels = np.where(labels == -100, pad_token_id, labels)
+        # Check for NaN/Inf in labels (less likely but good practice)
+        if np.isnan(labels).any() or np.isinf(labels).any():
+            print("Warning: NaN or Inf detected in labels. Replacing with pad_token_id.")
+            labels = np.nan_to_num(labels, nan=pad_token_id, posinf=pad_token_id, neginf=pad_token_id)
+        # Clip labels to valid token ID range
+        labels = np.clip(labels, 0, vocab_size - 1).astype(np.int32)
         # Decode the whole batch of labels
         decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
 
@@ -69,14 +93,32 @@ def compute_metrics_text(tokenizer):
 def compute_metrics_equation(tokenizer):
     def compute_metrics(eval_pred):
         predictions, labels = eval_pred
+        vocab_size = tokenizer.vocab_size
+        pad_token_id = tokenizer.pad_token_id
 
-        # Replace -100 and ensure integer type for predictions
-        predictions = np.where(predictions != -100, predictions, tokenizer.pad_token_id).astype(np.int32)
-        decoded_preds = tokenizer.batch_decode(predictions, skip_special_tokens=True) # Decode batch
+        # --- Predictions Preprocessing ---
+        # Replace -100 (ignore index)
+        predictions = np.where(predictions == -100, pad_token_id, predictions)
+        # Check for NaN/Inf and replace with pad_token_id
+        if np.isnan(predictions).any() or np.isinf(predictions).any():
+            print("Warning: NaN or Inf detected in predictions. Replacing with pad_token_id.")
+            predictions = np.nan_to_num(predictions, nan=pad_token_id, posinf=pad_token_id, neginf=pad_token_id)
+        # Clip predictions to valid token ID range
+        predictions = np.clip(predictions, 0, vocab_size - 1).astype(np.int32)
+        # Decode the whole batch
+        decoded_preds = tokenizer.batch_decode(predictions, skip_special_tokens=True)
 
-        # Replace -100 and ensure integer type for labels
-        labels = np.where(labels != -100, labels, tokenizer.pad_token_id).astype(np.int32)
-        decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True) # Decode batch
+        # --- Labels Preprocessing ---
+        # Replace -100 in labels as well
+        labels = np.where(labels == -100, pad_token_id, labels)
+        # Check for NaN/Inf in labels
+        if np.isnan(labels).any() or np.isinf(labels).any():
+            print("Warning: NaN or Inf detected in labels. Replacing with pad_token_id.")
+            labels = np.nan_to_num(labels, nan=pad_token_id, posinf=pad_token_id, neginf=pad_token_id)
+        # Clip labels to valid token ID range
+        labels = np.clip(labels, 0, vocab_size - 1).astype(np.int32)
+        # Decode the whole batch of labels
+        decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
 
         # Evaluate equations and compute accuracy using the helper function
         acc = compute_equation_acc(decoded_preds, decoded_labels)
