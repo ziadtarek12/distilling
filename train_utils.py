@@ -116,7 +116,6 @@ def train_and_evaluate(args, run, tokenizer, tokenized_datasets, compute_metrics
     trainer.train()
     
     # Save the final model explicitly
-    logger.info(f"Saving final model to {output_dir}") 
     trainer.save_model(output_dir) 
 
     return trainer # Return the trainer object
