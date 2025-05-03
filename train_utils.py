@@ -37,9 +37,11 @@ def train_and_evaluate(args, run, tokenizer, tokenized_datasets, compute_metrics
     if args.parallelize:
         model.parallelize()
     
-    config_dir = get_config_dir(args)
-    output_dir = f'ckpts/{config_dir}/{run}'  # for model ckpts
-    logging_dir = f'logs/{config_dir}/{run}'  # for training logs
+    # config_dir = get_config_dir(args) # No longer needed
+    # output_dir = f'ckpts/{config_dir}/{run}'  # Use args.output_dir directly
+    output_dir = args.output_dir # Use the output_dir defined in notebook args
+    # logging_dir = f'logs/{config_dir}/{run}'  # Use a subfolder within args.output_dir
+    logging_dir = os.path.join(output_dir, 'logs') # Log within the main output directory
 
     if args.no_log:
         logging_strategy = 'no'
@@ -51,9 +53,13 @@ def train_and_evaluate(args, run, tokenizer, tokenized_datasets, compute_metrics
     if os.path.exists(output_dir):
         logging.info('Found existing ckpt directory. Deleted the old directory for the latest run.')
         shutil.rmtree(output_dir)
+    
+    # Ensure the logging directory exists if logging is enabled
+    if logging_strategy == 'steps' and logging_dir:
+        os.makedirs(logging_dir, exist_ok=True)
 
     training_args = Seq2SeqTrainingArguments(
-        output_dir,
+        output_dir, # Use the correct output_dir
         remove_unused_columns = False,
         eval_strategy = 'steps',
         eval_steps=args.eval_steps,
@@ -109,9 +115,9 @@ def train_and_evaluate(args, run, tokenizer, tokenized_datasets, compute_metrics
 
     trainer.train()
     
-    # Save the final model
-    logger.info(f"Saving final model to {output_dir}") # Commented out as saving is handled by save_strategy='steps'
-    trainer.save_model(output_dir) # Commented out as saving is handled by save_strategy='steps'
+    # Save the final model explicitly
+    logger.info(f"Saving final model to {output_dir}") 
+    trainer.save_model(output_dir) 
 
     return trainer # Return the trainer object
 
