@@ -126,3 +126,65 @@ def compute_metrics_equation(tokenizer):
         return {'accuracy': acc}
 
     return compute_metrics
+
+# Function for task_prefix model with text data - evaluate both label and rationale tasks
+def compute_metrics_text_aux(tokenizer):
+    def compute_metrics(eval_pred):
+        # For standard model, prediction is just a single tensor for label prediction
+        predictions, labels = eval_pred
+        vocab_size = tokenizer.vocab_size
+        pad_token_id = tokenizer.pad_token_id
+        
+        # Preprocess predictions (same preprocessing as in compute_metrics_text)
+        predictions = np.where(predictions == -100, pad_token_id, predictions)
+        if np.isnan(predictions).any() or np.isinf(predictions).any():
+            print("Warning: NaN or Inf detected in predictions. Replacing with pad_token_id.")
+            predictions = np.nan_to_num(predictions, nan=pad_token_id, posinf=pad_token_id, neginf=pad_token_id)
+        predictions = np.clip(predictions, 0, vocab_size - 1).astype(np.int32)
+        decoded_preds = tokenizer.batch_decode(predictions, skip_special_tokens=True)
+        
+        # Preprocess labels
+        labels = np.where(labels == -100, pad_token_id, labels)
+        if np.isnan(labels).any() or np.isinf(labels).any():
+            print("Warning: NaN or Inf detected in labels. Replacing with pad_token_id.")
+            labels = np.nan_to_num(labels, nan=pad_token_id, posinf=pad_token_id, neginf=pad_token_id)
+        labels = np.clip(labels, 0, vocab_size - 1).astype(np.int32)
+        decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
+        
+        # Calculate accuracy
+        acc = compute_text_acc(decoded_preds, decoded_labels)
+        
+        return {'accuracy': acc}
+    
+    return compute_metrics
+
+# Function for task_prefix model with equation data - evaluate both label and rationale tasks
+def compute_metrics_equation_aux(tokenizer):
+    def compute_metrics(eval_pred):
+        # For standard model, prediction is just a single tensor for label prediction
+        predictions, labels = eval_pred
+        vocab_size = tokenizer.vocab_size
+        pad_token_id = tokenizer.pad_token_id
+        
+        # Preprocess predictions (same preprocessing as in compute_metrics_equation)
+        predictions = np.where(predictions == -100, pad_token_id, predictions)
+        if np.isnan(predictions).any() or np.isinf(predictions).any():
+            print("Warning: NaN or Inf detected in predictions. Replacing with pad_token_id.")
+            predictions = np.nan_to_num(predictions, nan=pad_token_id, posinf=pad_token_id, neginf=pad_token_id)
+        predictions = np.clip(predictions, 0, vocab_size - 1).astype(np.int32)
+        decoded_preds = tokenizer.batch_decode(predictions, skip_special_tokens=True)
+        
+        # Preprocess labels
+        labels = np.where(labels == -100, pad_token_id, labels)
+        if np.isnan(labels).any() or np.isinf(labels).any():
+            print("Warning: NaN or Inf detected in labels. Replacing with pad_token_id.")
+            labels = np.nan_to_num(labels, nan=pad_token_id, posinf=pad_token_id, neginf=pad_token_id)
+        labels = np.clip(labels, 0, vocab_size - 1).astype(np.int32)
+        decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
+        
+        # Calculate equation accuracy
+        acc = compute_equation_acc(decoded_preds, decoded_labels)
+        
+        return {'accuracy': acc}
+    
+    return compute_metrics
