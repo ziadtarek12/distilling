@@ -59,6 +59,11 @@ def compute_metrics_text(tokenizer):
         vocab_size = tokenizer.vocab_size
         pad_token_id = tokenizer.pad_token_id
 
+        # Handle predictions being a list (e.g., in task_prefix model)
+        if isinstance(predictions, list):
+            # Extract the predictions for the 'pred' task
+            predictions = predictions[0]
+        
         # --- Predictions Preprocessing ---
         # Replace -100 (ignore index)
         predictions = np.where(predictions == -100, pad_token_id, predictions)
@@ -71,6 +76,11 @@ def compute_metrics_text(tokenizer):
         # Decode the whole batch
         decoded_preds = tokenizer.batch_decode(predictions, skip_special_tokens=True)
 
+        # Handle labels being a list (e.g., in task_prefix model)
+        if isinstance(labels, list):
+            # Extract the labels for the 'pred' task
+            labels = labels[0]
+            
         # --- Labels Preprocessing ---
         # Replace -100 in labels as well
         labels = np.where(labels == -100, pad_token_id, labels)
@@ -96,6 +106,11 @@ def compute_metrics_equation(tokenizer):
         vocab_size = tokenizer.vocab_size
         pad_token_id = tokenizer.pad_token_id
 
+        # Handle predictions being a list (e.g., in task_prefix model)
+        if isinstance(predictions, list):
+            # Extract the predictions for the 'pred' task
+            predictions = predictions[0]
+            
         # --- Predictions Preprocessing ---
         # Replace -100 (ignore index)
         predictions = np.where(predictions == -100, pad_token_id, predictions)
@@ -108,6 +123,11 @@ def compute_metrics_equation(tokenizer):
         # Decode the whole batch
         decoded_preds = tokenizer.batch_decode(predictions, skip_special_tokens=True)
 
+        # Handle labels being a list (e.g., in task_prefix model)
+        if isinstance(labels, list):
+            # Extract the labels for the 'pred' task
+            labels = labels[0]
+            
         # --- Labels Preprocessing ---
         # Replace -100 in labels as well
         labels = np.where(labels == -100, pad_token_id, labels)
@@ -135,20 +155,39 @@ def compute_metrics_text_aux(tokenizer):
         vocab_size = tokenizer.vocab_size
         pad_token_id = tokenizer.pad_token_id
         
+        # Ensure predictions is 2D (batch_size, seq_len)
+        if isinstance(predictions, list):
+            # For some model outputs, predictions might be a list of tensors
+            predictions = predictions[0]  # Take the first one (label predictions)
+        
         # Preprocess predictions (same preprocessing as in compute_metrics_text)
         predictions = np.where(predictions == -100, pad_token_id, predictions)
         if np.isnan(predictions).any() or np.isinf(predictions).any():
             print("Warning: NaN or Inf detected in predictions. Replacing with pad_token_id.")
             predictions = np.nan_to_num(predictions, nan=pad_token_id, posinf=pad_token_id, neginf=pad_token_id)
         predictions = np.clip(predictions, 0, vocab_size - 1).astype(np.int32)
+        
+        # Ensure predictions is a proper 2D array for batch_decode
+        if len(predictions.shape) == 1:
+            predictions = predictions.reshape(1, -1)
+            
         decoded_preds = tokenizer.batch_decode(predictions, skip_special_tokens=True)
         
+        # Handle labels similarly
+        if isinstance(labels, list):
+            labels = labels[0]  # Take the first one (main task labels)
+            
         # Preprocess labels
         labels = np.where(labels == -100, pad_token_id, labels)
         if np.isnan(labels).any() or np.isinf(labels).any():
             print("Warning: NaN or Inf detected in labels. Replacing with pad_token_id.")
             labels = np.nan_to_num(labels, nan=pad_token_id, posinf=pad_token_id, neginf=pad_token_id)
         labels = np.clip(labels, 0, vocab_size - 1).astype(np.int32)
+        
+        # Ensure labels is a proper 2D array for batch_decode
+        if len(labels.shape) == 1:
+            labels = labels.reshape(1, -1)
+            
         decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
         
         # Calculate accuracy
@@ -166,20 +205,39 @@ def compute_metrics_equation_aux(tokenizer):
         vocab_size = tokenizer.vocab_size
         pad_token_id = tokenizer.pad_token_id
         
+        # Ensure predictions is 2D (batch_size, seq_len)
+        if isinstance(predictions, list):
+            # For some model outputs, predictions might be a list of tensors
+            predictions = predictions[0]  # Take the first one (label predictions)
+        
         # Preprocess predictions (same preprocessing as in compute_metrics_equation)
         predictions = np.where(predictions == -100, pad_token_id, predictions)
         if np.isnan(predictions).any() or np.isinf(predictions).any():
             print("Warning: NaN or Inf detected in predictions. Replacing with pad_token_id.")
             predictions = np.nan_to_num(predictions, nan=pad_token_id, posinf=pad_token_id, neginf=pad_token_id)
         predictions = np.clip(predictions, 0, vocab_size - 1).astype(np.int32)
+        
+        # Ensure predictions is a proper 2D array for batch_decode
+        if len(predictions.shape) == 1:
+            predictions = predictions.reshape(1, -1)
+            
         decoded_preds = tokenizer.batch_decode(predictions, skip_special_tokens=True)
         
+        # Handle labels similarly
+        if isinstance(labels, list):
+            labels = labels[0]  # Take the first one (main task labels)
+            
         # Preprocess labels
         labels = np.where(labels == -100, pad_token_id, labels)
         if np.isnan(labels).any() or np.isinf(labels).any():
             print("Warning: NaN or Inf detected in labels. Replacing with pad_token_id.")
             labels = np.nan_to_num(labels, nan=pad_token_id, posinf=pad_token_id, neginf=pad_token_id)
         labels = np.clip(labels, 0, vocab_size - 1).astype(np.int32)
+        
+        # Ensure labels is a proper 2D array for batch_decode
+        if len(labels.shape) == 1:
+            labels = labels.reshape(1, -1)
+            
         decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
         
         # Calculate equation accuracy
