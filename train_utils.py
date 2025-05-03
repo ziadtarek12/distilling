@@ -57,8 +57,8 @@ def train_and_evaluate(args, run, tokenizer, tokenized_datasets, compute_metrics
         remove_unused_columns = False,
         eval_strategy = 'steps',
         eval_steps=args.eval_steps,
-        save_strategy='no',
-        save_steps=args.eval_steps,
+        save_strategy='steps', # Changed from 'no' to 'steps'
+        save_steps=args.eval_steps, # Save checkpoints at eval steps
         logging_dir=logging_dir,
         logging_strategy=logging_strategy,
         logging_steps=args.eval_steps,
@@ -73,6 +73,7 @@ def train_and_evaluate(args, run, tokenizer, tokenized_datasets, compute_metrics
         bf16=args.bf16,
         generation_max_length=args.gen_max_len,
         prediction_loss_only=False,
+        save_total_limit=1 # Optional: Limit the number of checkpoints saved
     )
 
     if args.model_type == 'task_prefix':
@@ -107,3 +108,6 @@ def train_and_evaluate(args, run, tokenizer, tokenized_datasets, compute_metrics
     
 
     trainer.train()
+    
+    # Save the final model
+    return trainer
