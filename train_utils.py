@@ -110,4 +110,8 @@ def train_and_evaluate(args, run, tokenizer, tokenized_datasets, compute_metrics
     trainer.train()
     
     # Save the final model
-    return trainer
+    logger.info(f"Saving final model to {output_dir}") # Commented out as saving is handled by save_strategy='steps'
+    trainer.save_model(output_dir) # Commented out as saving is handled by save_strategy='steps'
+
+    return trainer # Return the trainer object
+
